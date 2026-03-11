@@ -1,3 +1,4 @@
+import { createAnthropic } from '@ai-sdk/anthropic';
 import { createFireworks } from '@ai-sdk/fireworks';
 import { createOpenAI } from '@ai-sdk/openai';
 import {
@@ -14,6 +15,12 @@ const openai = process.env.OPENAI_KEY
   ? createOpenAI({
       apiKey: process.env.OPENAI_KEY,
       baseURL: process.env.OPENAI_ENDPOINT || 'https://api.openai.com/v1',
+    })
+  : undefined;
+
+const anthropic = process.env.ANTHROPIC_API_KEY
+  ? createAnthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
     })
   : undefined;
 
@@ -36,6 +43,10 @@ const o3MiniModel = openai?.('o3-mini', {
   structuredOutputs: true,
 });
 
+const claudeModel = anthropic
+  ? anthropic(process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514') as LanguageModelV1
+  : undefined;
+
 const deepSeekR1Model = fireworks
   ? wrapLanguageModel({
       model: fireworks(
@@ -50,9 +61,10 @@ export function getModel(): LanguageModelV1 {
     return customModel;
   }
 
-  const model = deepSeekR1Model ?? o3MiniModel;
+  // Priority: DeepSeek R1 > Claude > OpenAI o3-mini
+  const model = deepSeekR1Model ?? claudeModel ?? o3MiniModel;
   if (!model) {
-    throw new Error('No model found');
+    throw new Error('No model found. Set ANTHROPIC_API_KEY, OPENAI_KEY, or FIREWORKS_KEY in .env.local');
   }
 
   return model as LanguageModelV1;
